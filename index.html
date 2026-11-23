@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14161a">
+<title>Rhétorique 1 test micro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sofia+Sans+Condensed:wght@700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE everyday tool, calm and exact, like a referee's scorecard
+   IDEA the score sheet a fact-checker keeps during a live debate
+   PICTURE the live verdict and the annotated transcript, filling the phone
+   COLOUR white ground, ink #14161a, teal #0b7a75 solid, vermilion #e5432d manoeuvre
+   TYPE Sofia Sans Condensed for figures + Inter for text
+   LAYOUT one phone screen: header, verdict, meters, feed, big listen button, tabs */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#0f1113);--ink:light-dark(#14161a,#eceef0);--mute:light-dark(#5d636b,#9aa1a9);--line:light-dark(#e3e5e8,#2a2e33);--card:light-dark(#f5f6f7,#181b1f);--ok:light-dark(#0b7a75,#3fbfb7);--bad:light-dark(#e5432d,#ff6a55);--mid:light-dark(#7b818a,#a3a9b1);--okbg:light-dark(#e3f3f2,#123331);--badbg:light-dark(#fde9e5,#3a1a15);--midbg:light-dark(#eef0f2,#22262b)}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
+.app{max-width:520px;margin:0 auto;height:100%;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.brand{font:800 22px/1 "Sofia Sans Condensed",sans-serif}
+.chip{font-size:13px;padding:5px 10px;border-radius:999px;background:var(--card);color:var(--mute);white-space:nowrap}
+.chip.on{color:var(--bad);background:var(--badbg)}
+.view{flex:1;overflow-y:auto;padding:14px 16px}
+.hide{display:none}
+.verdict{display:grid;grid-template-columns:84px minmax(0,1fr);gap:14px;align-items:center;padding:12px;border-radius:18px;background:var(--midbg);transition:background .4s}
+.verdict.up{background:var(--okbg)}
+.verdict.down{background:var(--badbg)}
+.badge{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;background:var(--bg)}
+.badge svg{width:50px;height:50px;fill:var(--mid);transition:transform .4s}
+.up .badge svg{fill:var(--ok)}
+.down .badge svg{fill:var(--bad)}
+.vlab{font:800 25px/1.05 "Sofia Sans Condensed",sans-serif}
+.vsub{font-size:13px;color:var(--mute)}
+.score{font-weight:600;font-size:15px;margin-top:3px;font-variant-numeric:tabular-nums}
+.meters{display:grid;gap:10px;margin:14px 0}
+.m{display:grid;grid-template-columns:7.4em minmax(0,1fr) 3.6em;gap:10px;align-items:center;font-size:14px}
+.bar{height:10px;border-radius:5px;background:var(--card);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:5px;background:var(--ink);transition:width .5s}
+.m b{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.h{font-size:13px;color:var(--mute);margin:16px 0 8px;display:flex;justify-content:space-between;gap:8px}
+.interim{min-height:24px;font-size:15px;color:var(--mute);font-style:italic;margin-bottom:8px}
+.feed{display:flex;flex-direction:column;gap:10px}
+.s{padding:12px;border-radius:14px;border:1px solid var(--line);animation:in .35s ease-out}
+.s.now{border-color:var(--ink)}
+.s .t{font-size:13px;color:var(--mute);margin-bottom:4px;font-variant-numeric:tabular-nums}
+.s q{quotes:none;display:block;font-size:15px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{font-size:13px;padding:3px 8px;border-radius:8px;background:var(--badbg);color:var(--bad)}
+.tag.u{background:var(--midbg);color:var(--mute)}
+.tag.f{background:var(--okbg);color:var(--ok)}
+.empty{padding:18px;border-radius:14px;background:var(--card);color:var(--mute);font-size:15px}
+.msg{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:var(--badbg);color:var(--bad);font-size:14px}
+@keyframes in{from{opacity:0;transform:translateY(8px)}}
+.ctrl{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--line)}
+button{font:500 15px Inter,sans-serif;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+button.pri{background:var(--ink);color:var(--bg);border-color:var(--ink);flex:1;font-size:17px;min-height:52px}
+button.pri.rec{background:var(--bad);border-color:var(--bad);color:#fff}
+.tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs button{border:0;border-radius:0;background:none;color:var(--mute);min-height:52px}
+.tabs button[aria-selected=true]{color:var(--ink);font-weight:600;box-shadow:inset 0 3px 0 var(--ink)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:15px}
+.row small{display:block;color:var(--mute);font-size:13px}
+input[type=checkbox]{width:22px;height:22px;accent-color:var(--ok);flex:none}
+select{font:16px Inter,sans-serif;min-height:40px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 8px}
+textarea{width:100%;min-height:120px;font:16px/1.4 Inter,sans-serif;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:10px;margin:8px 0}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.big{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.k{background:var(--card);border-radius:14px;padding:12px}
+.k b{display:block;font:800 30px/1.1 "Sofia Sans Condensed",sans-serif;font-variant-numeric:tabular-nums}
+.k span{font-size:13px;color:var(--mute)}
+.small{font-size:13px;color:var(--mute)}
+@media(prefers-reduced-motion:reduce){.s{animation:none}.bar i,.verdict,.badge svg{transition:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <span class="brand">Rhétorique 1</span>
+    <span class="chip" id="state">Micro coupé</span>
+  </div>
+
+  <div class="view" id="v-direct">
+    <p class="msg hide" id="msg" role="alert"></p>
+    <div class="verdict" id="verdict">
+      <div class="badge"><svg viewBox="0 0 48 48" id="icon" aria-hidden="true"></svg></div>
+      <div>
+        <div class="vlab" id="vlab">En attente</div>
+        <div class="vsub" id="vsub">Aucune phrase analysée</div>
+        <div class="score" id="vscore">Score – / 100</div>
+      </div>
+    </div>
+    <div class="meters" id="meters"></div>
+    <div class="h"><span>Transcription annotée</span><span id="count">0 phrase</span></div>
+    <div class="interim" id="interim" aria-live="polite"></div>
+    <div class="feed" id="feed"></div>
+  </div>
+
+  <div class="view hide" id="v-set">
+    <div class="row"><label for="win">Verdict calculé sur<small>Plus de phrases = verdict plus stable.</small></label>
+      <select id="win"><option value="3">3 phrases</option><option value="5" selected>5 phrases</option><option value="8">8 phrases</option></select></div>
+    <div class="row"><label for="c-pathos">Jauge pathos</label><input type="checkbox" id="c-pathos" checked></div>
+    <div class="row"><label for="c-chiffres">Jauge chiffres sourcés</label><input type="checkbox" id="c-chiffres" checked></div>
+    <div class="row"><label for="c-moi">Jauge je / nous (EG1)</label><input type="checkbox" id="c-moi" checked></div>
+    <div class="row"><label for="c-vib">Vibrer à chaque procédé détecté</label><input type="checkbox" id="c-vib"></div>
+    <div class="row"><label for="c-wake">Garder l'écran allumé pendant l'écoute</label><input type="checkbox" id="c-wake" checked></div>
+    <div class="h" style="margin-top:20px"><span>Tester sans micro</span></div>
+    <label for="paste" class="small">Collez un texte : il est découpé en phrases et analysé avec les mêmes règles.</label>
+    <textarea id="paste">Mesdames et messieurs, je vais être très clair ce soir. Depuis que j'ai pris ces décisions, le chômage a baissé de 2 points. Si nous ne faisons rien, c'est le chaos. Soit on vote ce plan, soit on accepte le déclin. Il y a eu parfois des erreurs, mais nous avons tenu. Selon l'Insee, 3 000 emplois ont été créés. Comptez sur mon engagement jusqu'au bout.</textarea>
+    <div class="btns">
+      <button type="button" id="b-paste">Analyser ce texte</button>
+      <button type="button" id="b-copy">Copier le JSON</button>
+      <button type="button" id="b-clear">Tout effacer</button>
+    </div>
+    <p class="small" id="copied" aria-live="polite"></p>
+    <p class="small">Transcription : reconnaissance vocale de Chrome (le son est envoyé à Google). Analyse : règles de la grille Rhetor, dans le téléphone. Les faits ne sont pas vérifiés, seuls les chiffres sans source sont signalés.</p>
+  </div>
+
+  <div class="view hide" id="v-sum">
+    <div class="big" id="kpis"></div>
+    <div class="h"><span>Procédés par pilier</span></div>
+    <div class="meters" id="fam"></div>
+    <div class="h"><span>Codes relevés</span></div>
+    <div class="tags" id="codes"></div>
+    <div class="h"><span>Phrases les plus chargées</span></div>
+    <div class="feed" id="worst"></div>
+  </div>
+
+  <div class="ctrl">
+    <button type="button" class="pri" id="listen">Écouter</button>
+  </div>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" aria-selected="true" data-v="v-direct">Direct</button>
+    <button type="button" role="tab" aria-selected="false" data-v="v-set">Réglages</button>
+    <button type="button" role="tab" aria-selected="false" data-v="v-sum">Résumé</button>
+  </div>
+</div>
+
+<script id="rules">
+{
+const P={
+L1:["Critère d'intention",/\b(essayer|essayé|essayons|faire de (mon|notre) mieux|œuvr|oeuvr|je m'engage|nous nous engageons|s'engager)/],
+L2:["Généralité creuse",/(plus forte?s?\b|défis de demain|intérêt supérieur|l'avenir\b|plus juste|grande nation)/],
+L4:["Fausse causalité",/(grâce à|c'est pourquoi|depuis que)/],
+L6:["Faux dilemme",/(\bsoit\b.+\bsoit\b|\bou bien\b.+\bou\b)/],
+L7:["Glissement temporel",/((depuis|en) (\d+|deux|trois|cinq|dix|vingt) ans)/],
+E1:["Concession-annulation",/((certes|il y a eu|j'ai commis|nous avons commis)[^.]*\bmais\b)/],
+E2:["Aveu sans agent",/(il y a eu (parfois |quelques |des )*(erreurs|ratés|difficultés|fautes)|(erreurs|fautes) ont été commises)/],
+E4:["Posture surplombante",/(au service de tous|intérêt supérieur|au-delà des (partis|clivages))/],
+E5:["Humilité stratégique",/(humblement|avec humilité|j'ai appris)/],
+E6:["Caution par association",/(aux côtés de|avec des femmes et des hommes)/],
+E7:["Auto-attribution du succès",/(j'ai obtenu|grâce à mon action|grâce à moi|depuis que j'ai|j'ai permis)/],
+E8:["Externalisation de l'échec",/(la crise|mes prédécesseurs|le contexte international|on n'a pas pu|la faute (à|de)|imposées? d'en haut)/],
+E9:["Saturation du moi",/(moi,? je\b)/],
+P1:["Captatio / gratitude",/(je veux remercier|merci à|je remercie)/],
+P2:["Ancrage mémoriel",/(il y a (\d+|dix|vingt|cent) ans)/],
+P3:["Peur / menace",/(menace|danger|chaos|catastrophe|effondrement|déclin|paieront)/],
+P4:["Fierté collective",/(notre france|nous,? (les )?français|notre pays|notre nation|fierté)/],
+P5:["Urgence",/(\bmaintenant\b|il n'y a plus de temps|il est urgent|sans attendre|dès aujourd'hui)/],
+S2:["Réfutation implicite",/(jusqu'au bout|je resterai|je ne lâcherai)/]
+};
+const JE=new Set(["je","moi","me","mon","ma","mes","mien","mienne","miens","miennes"]);
+const NOUS=new Set(["nous","notre","nos","nôtre","nôtres"]);
+const VOUS=new Set(["vous","votre","vos","vôtre","vôtres"]);
+const NUM=/(\d|\bmillions?\b|\bmilliards?\b|\bpour ?cent\b|%)/;
+const SRC=/(\bselon\b|d'après|\bsource|insee|eurostat|\bchiffres de\b|\bpubliés?\b)/;
+const DECIDE=/\bj'ai (voulu|demandé|fixé|décidé|engagé|choisi)/g;
+function norm(x){return x.toLowerCase().replace(/[’`]/g,"'").replace(/\s+/g," ").trim()}
+function pron(t){
+  const w=t.match(/[a-zàâäçéèêëîïôöûùüÿœ']+/g)||[];let je=0,nous=0,vous=0;
+  for(const x of w){
+    if(/^[jm]'/.test(x)){je++;continue}
+    const y=x.replace(/^[a-z]'/,"");
+    if(JE.has(y))je++;else if(NOUS.has(y))nous++;else if(VOUS.has(y))vous++;
+  }
+  return {je,nous,vous,mots:w.length};
+}
+function analyse(text){
+  const t=norm(text),tags=[];
+  for(const k in P)if(P[k][1].test(t))tags.push([k,P[k][0]]);
+  const pr=pron(t);
+  const dec=(t.match(DECIDE)||[]).length;
+  if(!tags.some(g=>g[0]==="E9")&&(dec>=2||pr.je>=3))tags.push(["E9",P.E9[0]]);
+  const parts=t.split(/,| et /).map(s=>s.trim()).filter(Boolean);
+  if(parts.length>=3&&parts.every(s=>s.split(" ").length<=4))tags.push(["S3","Accumulation"]);
+  let chiffre=null;
+  if(NUM.test(t))chiffre=SRC.test(t)?"f":"u";
+  let score=62-tags.length*14;
+  if(chiffre==="f")score+=18;if(chiffre==="u")score-=8;
+  score=Math.max(0,Math.min(100,score));
+  return {texte:text.trim(),procedes:tags,chiffre,score,pathos:tags.some(g=>g[0][0]==="P"),...pr};
+}
+function phrases(txt){return txt.replace(/\s+/g," ").split(/(?<=[.!?…])\s+/).map(s=>s.trim()).filter(s=>s.length>2)}
+window.R1={analyse,phrases,P};
+}
+</script>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ICON={up:'<path d="M6 22h8v20H6z"/><path d="M17 22l8-14c1.6-2.8 6.5-1.8 6.2 1.6L30 20h9.5c2.8 0 4.8 2.7 4 5.4l-4 13.4c-.6 1.9-2.3 3.2-4.3 3.2H17z"/>',flat:'<path d="M4 20h30c2.2 0 4 1.8 4 4s-1.8 4-4 4H4z"/><path d="M4 30h34c2.2 0 4 1.8 4 4s-1.8 4-4 4H4z"/><path d="M8 12h20c2 0 3.6 1.6 3.6 3.6S30 19 28 19H8z"/>'};
+const FAM={L:"Logos",E:"Ethos",P:"Pathos",S:"Structure"};
+let st={items:[],mood:"flat",win:5,show:{pathos:true,chiffres:true,moi:true},vib:false,wake:true,listening:false};
+try{const v=JSON.parse(localStorage.getItem("r1test")||"{}");Object.assign(st.show,v.show||{});if(v.win)st.win=v.win;if(v.vib!=null)st.vib=v.vib;if(v.wake!=null)st.wake=v.wake}catch(e){}
+const save=()=>{try{localStorage.setItem("r1test",JSON.stringify({show:st.show,win:st.win,vib:st.vib,wake:st.wake}))}catch(e){}};
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+const ratio=(a,b)=>b?(a/b).toFixed(2).replace(".",","):"–";
+const hhmmss=()=>new Date().toLocaleTimeString("fr-FR");
+
+function add(text){
+  for(const p of R1.phrases(text)){
+    const a=R1.analyse(p);a.heure=hhmmss();st.items.push(a);
+    if(st.vib&&a.procedes.length&&navigator.vibrate)try{navigator.vibrate(120)}catch(e){}
+  }
+  render();
+}
+function card(a,now){
+  let t=a.procedes.map(g=>'<span class="tag">'+g[0]+" · "+esc(g[1])+"</span>").join("");
+  if(a.chiffre==="u")t+='<span class="tag u">Chiffre sans source</span>';
+  if(a.chiffre==="f")t+='<span class="tag f">Chiffre sourcé</span>';
+  return '<div class="s'+(now?" now":"")+'"><div class="t">'+a.heure+'</div><q>'+esc(a.texte)+"</q>"+(t?'<div class="tags">'+t+"</div>":"")+"</div>";
+}
+function render(){
+  const it=st.items,last=it.slice(-st.win);
+  $("count").textContent=it.length+(it.length>1?" phrases":" phrase");
+  const v=$("verdict");
+  if(!it.length){v.className="verdict";$("icon").innerHTML=ICON.flat;$("vlab").textContent="En attente";$("vsub").textContent="Aucune phrase analysée";$("vscore").textContent="Score – / 100"}
+  else{
+    const score=Math.round(last.reduce((s,a)=>s+a.score,0)/last.length);
+    if(st.mood!=="up"&&score>=62)st.mood="up";else if(st.mood!=="down"&&score<=38)st.mood="down";else if(score>45&&score<55)st.mood="flat";
+    v.className="verdict "+st.mood;
+    $("icon").innerHTML=st.mood==="flat"?ICON.flat:ICON.up;
+    $("icon").style.transform=st.mood==="down"?"rotate(180deg)":"none";
+    $("vlab").textContent={up:"Discours solide",down:"Manœuvres dominantes",flat:"Neutre"}[st.mood];
+    $("vsub").textContent="Sur les "+last.length+" dernières phrases";
+    $("vscore").textContent="Score "+score+" / 100";
+  }
+  const pa=last.filter(a=>a.pathos).length,ch=it.filter(a=>a.chiffre),chf=ch.filter(a=>a.chiffre==="f").length;
+  const je=it.reduce((s,a)=>s+a.je,0),nous=it.reduce((s,a)=>s+a.nous,0);
+  const rows=[];
+  if(st.show.pathos)rows.push(["Pathos",pct(pa,last.length),pct(pa,last.length)+" %"]);
+  if(st.show.chiffres)rows.push(["Chiffres sourcés",pct(chf,ch.length),chf+" / "+ch.length]);
+  if(st.show.moi)rows.push(["Je / (je+nous)",pct(je,je+nous),ratio(je,je+nous)]);
+  $("meters").innerHTML=rows.map(r=>'<div class="m"><span>'+r[0]+'</span><div class="bar"><i style="width:'+r[1]+'%"></i></div><b>'+r[2]+"</b></div>").join("");
+  $("feed").innerHTML=it.length?it.map((a,i)=>card(a,i===it.length-1)).reverse().join(""):'<div class="empty">Appuyez sur « Écouter », autorisez le micro, puis approchez le téléphone de la télé. Les phrases apparaîtront ici avec leurs procédés. Pour essayer sans micro : onglet Réglages, « Analyser ce texte ».</div>';
+  const n=it.reduce((s,a)=>s+a.procedes.length,0),vous=it.reduce((s,a)=>s+a.vous,0);
+  $("kpis").innerHTML=[[it.length,"phrases analysées"],[n,"procédés relevés"],[ratio(je,je+nous),"EG1 je / (je+nous)"],[ratio(vous,je+nous+vous),"EG2 taux d'adresse"]].map(k=>'<div class="k"><b>'+k[0]+"</b><span>"+k[1]+"</span></div>").join("");
+  const c={L:0,E:0,P:0,S:0},codes={};
+  it.forEach(a=>a.procedes.forEach(g=>{c[g[0][0]]++;codes[g[0]]=(codes[g[0]]||0)+1}));
+  const mx=Math.max(1,...Object.values(c));
+  $("fam").innerHTML=Object.keys(FAM).map(k=>'<div class="m"><span>'+FAM[k]+'</span><div class="bar"><i style="width:'+pct(c[k],mx)+'%;background:var(--bad)"></i></div><b>'+c[k]+"</b></div>").join("");
+  $("codes").innerHTML=Object.keys(codes).sort().map(k=>'<span class="tag">'+k+" × "+codes[k]+"</span>").join("")||'<span class="small">Aucun pour l\'instant.</span>';
+  $("worst").innerHTML=it.slice().sort((a,b)=>a.score-b.score).slice(0,3).map(a=>card(a,false)).join("");
+}
+function msg(t){const m=$("msg");m.textContent=t;m.classList.toggle("hide",!t)}
+
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let rec=null,lock=null;
+async function wake(on){
+  try{if(on&&st.wake&&navigator.wakeLock)lock=await navigator.wakeLock.request("screen");else if(!on&&lock){await lock.release();lock=null}}catch(e){}
+}
+function setUI(){
+  $("listen").textContent=st.listening?"Arrêter l'écoute":"Écouter";
+  $("listen").classList.toggle("rec",st.listening);
+  $("state").textContent=st.listening?"Micro actif":"Micro coupé";
+  $("state").classList.toggle("on",st.listening);
+}
+function startRec(){
+  if(!SR){msg("Ce navigateur ne propose pas la reconnaissance vocale. Ouvrez la page dans Chrome sur Android.");return}
+  if(!window.isSecureContext){msg("Le micro n'est autorisé que sur une adresse en https. Hébergez la page (GitHub Pages) et rouvrez-la.");return}
+  rec=new SR();rec.lang="fr-FR";rec.continuous=true;rec.interimResults=true;
+  rec.onresult=e=>{
+    let interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const r=e.results[i];
+      if(r.isFinal){let t=r[0].transcript.trim();if(t){if(!/[.!?…]$/.test(t))t+=".";add(t.charAt(0).toUpperCase()+t.slice(1))}}
+      else interim+=r[0].transcript;
+    }
+    $("interim").textContent=interim;
+  };
+  rec.onerror=e=>{
+    if(e.error==="not-allowed"||e.error==="service-not-allowed"){msg("Accès au micro refusé. Touchez le cadenas à gauche de l'adresse, autorisez le micro, puis réessayez.");stopRec()}
+    else if(e.error==="network")msg("Pas de connexion : la transcription de Chrome a besoin d'Internet.");
+    else if(e.error==="audio-capture"){msg("Aucun micro disponible.");stopRec()}
+  };
+  rec.onend=()=>{if(st.listening)try{rec.start()}catch(e){setTimeout(()=>{if(st.listening)try{rec.start()}catch(x){}},400)}};
+  try{rec.start();st.listening=true;msg("");wake(true)}catch(e){msg("Impossible de démarrer le micro : "+e.message)}
+  setUI();
+}
+function stopRec(){st.listening=false;if(rec)try{rec.stop()}catch(e){}$("interim").textContent="";wake(false);setUI()}
+$("listen").onclick=()=>st.listening?stopRec():startRec();
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&st.listening)wake(true)});
+
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));
+  ["v-direct","v-set","v-sum"].forEach(id=>$(id).classList.toggle("hide",id!==b.dataset.v));
+});
+$("win").value=String(st.win);$("win").onchange=e=>{st.win=+e.target.value;save();render()};
+["pathos","chiffres","moi"].forEach(k=>{const el=$("c-"+k);el.checked=st.show[k];el.onchange=()=>{st.show[k]=el.checked;save();render()}});
+$("c-vib").checked=st.vib;$("c-vib").onchange=e=>{st.vib=e.target.checked;save()};
+$("c-wake").checked=st.wake;$("c-wake").onchange=e=>{st.wake=e.target.checked;save()};
+$("b-paste").onclick=()=>{add($("paste").value);document.querySelector('[data-v="v-direct"]').click()};
+$("b-clear").onclick=()=>{st.items=[];st.mood="flat";render()};
+$("b-copy").onclick=async()=>{
+  const data=JSON.stringify({outil:"Rhétorique 1 test micro",date:new Date().toISOString(),phrases:st.items},null,2);
+  try{await navigator.clipboard.writeText(data);$("copied").textContent="JSON copié ("+st.items.length+" phrases)."}catch(e){$("copied").textContent="Copie refusée par le navigateur."}
+};
+setUI();render();
+}
+</script>
+</body>
+</html>
