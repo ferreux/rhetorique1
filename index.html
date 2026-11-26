@@ -75,6 +75,15 @@ textarea{width:100%;min-height:120px;font:16px/1.4 Inter,sans-serif;border-radiu
 .k b{display:block;font:800 30px/1.1 "Sofia Sans Condensed",sans-serif;font-variant-numeric:tabular-nums}
 .k span{font-size:13px;color:var(--mute)}
 .small{font-size:13px;color:var(--mute)}
+button.tag{font:13px Inter,sans-serif;min-height:30px;padding:3px 8px;border:0;border-radius:8px;background:var(--badbg);color:var(--bad)}
+.why{margin-top:8px;padding:10px;border-radius:10px;background:var(--card);font-size:14px}
+.why b{display:block}
+.why i{display:block;color:var(--mute);font-style:normal;margin-top:4px}
+.eg{width:100%;border-collapse:collapse;font-size:14px}
+.eg td{padding:7px 0;border-bottom:1px solid var(--line);vertical-align:top}
+.eg td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:10px}
+.eg small{display:block;color:var(--mute);font-size:13px}
+.ver{font-size:13px;color:var(--mute)}
 @media(prefers-reduced-motion:reduce){.s{animation:none}.bar i,.verdict,.badge svg{transition:none}}
 </style>
 </head>
@@ -118,17 +127,23 @@ textarea{width:100%;min-height:120px;font:16px/1.4 Inter,sans-serif;border-radiu
       <button type="button" id="b-clear">Tout effacer</button>
     </div>
     <p class="small" id="copied" aria-live="polite"></p>
-    <p class="small">Transcription : reconnaissance vocale de Chrome (le son est envoyé à Google). Analyse : règles de la grille Rhetor, dans le téléphone. Les faits ne sont pas vérifiés, seuls les chiffres sans source sont signalés.</p>
+    <p class="small">Transcription : reconnaissance vocale de Chrome (le son est envoyé à Google). Analyse : moteur v2, règles de la grille Rhetor (procédés L, E, P, S et indicateurs EG1 à EG7), dans le téléphone. Les faits ne sont pas vérifiés : les chiffres sans source sont listés dans le Résumé.</p>
   </div>
 
   <div class="view hide" id="v-sum">
     <div class="big" id="kpis"></div>
-    <div class="h"><span>Procédés par pilier</span></div>
+    <div class="h"><span>Procédés par pilier</span><span id="dom"></span></div>
     <div class="meters" id="fam"></div>
-    <div class="h"><span>Codes relevés</span></div>
+    <div class="h"><span>Codes relevés (touchez pour l'explication)</span></div>
     <div class="tags" id="codes"></div>
-    <div class="h"><span>Phrases les plus chargées</span></div>
-    <div class="feed" id="worst"></div>
+    <div id="codewhy"></div>
+    <div class="h"><span>Égocentrisme discursif</span></div>
+    <table class="eg" id="egt"></table>
+    <div class="h"><span>Table d'attribution</span></div>
+    <table class="eg" id="attr"></table>
+    <div class="h"><span>Chiffres à vérifier (sans source citée)</span></div>
+    <div class="feed" id="verif"></div>
+    <p class="ver">Moteur d'analyse v2 · règles de la grille Rhetor, sans IA.</p>
   </div>
 
   <div class="ctrl">
@@ -143,61 +158,172 @@ textarea{width:100%;min-height:120px;font:16px/1.4 Inter,sans-serif;border-radiu
 
 <script id="rules">
 {
-const P={
-L1:["Critère d'intention",/\b(essayer|essayé|essayons|faire de (mon|notre) mieux|œuvr|oeuvr|je m'engage|nous nous engageons|s'engager)/],
-L2:["Généralité creuse",/(plus forte?s?\b|défis de demain|intérêt supérieur|l'avenir\b|plus juste|grande nation)/],
-L4:["Fausse causalité",/(grâce à|c'est pourquoi|depuis que)/],
-L6:["Faux dilemme",/(\bsoit\b.+\bsoit\b|\bou bien\b.+\bou\b)/],
-L7:["Glissement temporel",/((depuis|en) (\d+|deux|trois|cinq|dix|vingt) ans)/],
-E1:["Concession-annulation",/((certes|il y a eu|j'ai commis|nous avons commis)[^.]*\bmais\b)/],
-E2:["Aveu sans agent",/(il y a eu (parfois |quelques |des )*(erreurs|ratés|difficultés|fautes)|(erreurs|fautes) ont été commises)/],
-E4:["Posture surplombante",/(au service de tous|intérêt supérieur|au-delà des (partis|clivages))/],
-E5:["Humilité stratégique",/(humblement|avec humilité|j'ai appris)/],
-E6:["Caution par association",/(aux côtés de|avec des femmes et des hommes)/],
-E7:["Auto-attribution du succès",/(j'ai obtenu|grâce à mon action|grâce à moi|depuis que j'ai|j'ai permis)/],
-E8:["Externalisation de l'échec",/(la crise|mes prédécesseurs|le contexte international|on n'a pas pu|la faute (à|de)|imposées? d'en haut)/],
-E9:["Saturation du moi",/(moi,? je\b)/],
-P1:["Captatio / gratitude",/(je veux remercier|merci à|je remercie)/],
-P2:["Ancrage mémoriel",/(il y a (\d+|dix|vingt|cent) ans)/],
-P3:["Peur / menace",/(menace|danger|chaos|catastrophe|effondrement|déclin|paieront)/],
-P4:["Fierté collective",/(notre france|nous,? (les )?français|notre pays|notre nation|fierté)/],
-P5:["Urgence",/(\bmaintenant\b|il n'y a plus de temps|il est urgent|sans attendre|dès aujourd'hui)/],
-S2:["Réfutation implicite",/(jusqu'au bout|je resterai|je ne lâcherai)/]
+/* Moteur d'analyse Rhétorique 1 — v2. Aligné sur la grille Rhetor (L/E/P/S + EG1–EG7). */
+const B=(alts)=>new RegExp("(?<![\\p{L}'])(?:"+alts.join("|")+")(?![\\p{L}])","u");
+
+/* Catalogue : code → [nom, définition, question test, motif] */
+const C={
+L1:["Critère d'intention","Juger sur l'effort plutôt que sur le résultat.","Le résultat est-il mesurable ? Est-il donné ?",
+  B(["essay\\p{L}*","faire de (?:mon|notre) mieux","œuvr\\p{L}*","oeuvr\\p{L}*","je m'engage","nous nous engageons","nous sommes engagés","tout faire pour","tout mettre en œuvre","nous allons tout faire","je me bats","nous nous battons"])],
+L2:["Généralité creuse","Formule positive, incontestable, vide.","Peut-on être contre ? Si non, c'est creux.",
+  B(["plus forte?s?","plus juste","défis de demain","relever les défis","intérêt supérieur","l'avenir","notre avenir","un nouvel élan","le bon sens","les vrais problèmes","changer la vie","au cœur de","grande nation","le progrès","nos valeurs","les valeurs de la république","les français attendent","ce que veulent les français"])],
+L3:["Affirmation sans indicateur","Bilan posé sans chiffre ni exemple.","Quel chiffre, quelle mesure ?",null],
+L4:["Fausse causalité","Lien de cause à effet non démontré.","Le lien est-il prouvé ou juste juxtaposé ?",
+  B(["grâce à","c'est pourquoi","depuis que","à cause de","c'est la preuve que","ce qui prouve","résultat :?","donc"])],
+L5:["Boucle / circularité","La conclusion est déjà dans la prémisse, ou l'idée est répétée comme preuve.","La preuve dit-elle autre chose que la thèse ?",null],
+L6:["Faux dilemme","Deux options seulement.","Existe-t-il une troisième voie ?",
+  /(?:^|[^\p{L}])soit[^\p{L}].+[^\p{L}]soit[^\p{L}]|ou bien.+[^\p{L}]ou[^\p{L}]|(?:c'est|ce sera) (?:nous|moi) ou (?:le|la|les)|il n'y a pas d'alternative|il n'y a pas d'autre (?:choix|solution|voie)/u],
+L7:["Glissement temporel","Agréger des périodes différentes pour gonfler ou diluer un bilan.","La période couvre-t-elle bien ce qui est revendiqué ?",
+  B(["(?:depuis|en|pendant) (?:\\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|quinze|vingt|trente) ans","en une décennie","depuis le début du (?:mandat|quinquennat)"])],
+E1:["Concession-annulation","Avouer pour mieux effacer.","L'aveu a-t-il un contenu ? Le « mais » l'annule-t-il ?",
+  /(?:certes|il y a eu|j'ai (?:commis|fait) des|nous avons (?:commis|fait) des|je reconnais|c'est vrai)[^.]*[^\p{L}](?:mais|pourtant|néanmoins|toutefois)(?![\p{L}])/u],
+E2:["Aveu sans agent","Faute à la forme impersonnelle ou passive.","Qui a fait quoi ?",
+  /il y a eu (?:parfois |quelques |des |de )*(?:erreurs?|ratés?|difficultés?|fautes?|maladresses?|retards?)|(?:erreurs?|fautes?|maladresses?) (?:ont|a) été (?:commises?|faites?)|des choses n'ont pas/u],
+E3:["Bascule je / nous","Le mérite au « je », la faute au « nous » ou à personne (ou l'inverse).","Qui porte la responsabilité de chaque phrase ?",null],
+E4:["Posture surplombante","Se placer au-dessus des clivages.","Évite-t-on ainsi le débat sur le bilan ?",
+  B(["au service de tous","au service des français","intérêt supérieur","au-delà des (?:partis|clivages)","ni de droite ni de gauche","je ne fais pas de politique","l'intérêt général","pour tous les français"])],
+E5:["Humilité stratégique","Modestie affichée pour gagner la confiance.","La modestie porte-t-elle sur un point précis ?",
+  B(["humblement","avec humilité","j'ai appris","je suis lucide","je mesure","je ne suis pas parfait"])],
+E6:["Caution par association","Se légitimer par d'autres.","Les tiers sont-ils nommés ?",
+  B(["aux côtés de","avec des femmes et des hommes","comme l'a dit","comme le disait","tous les experts","les scientifiques disent","de nombreux élus"])],
+E7:["Auto-attribution du succès","S'approprier un résultat collectif ou conjoncturel.","D'autres acteurs ont-ils contribué ?",null],
+E8:["Externalisation de l'échec","Imputer l'échec à un tiers, aux circonstances ou à personne.","L'orateur avait-il la main sur la décision ?",null],
+E9:["Saturation du moi","Le « je » devient le sujet de l'action publique.","L'action est-elle décrite par son contenu ou par son auteur ?",
+  /moi,? je(?![\p{L}])/u],
+P1:["Captatio / gratitude","Remercier pour s'attirer la bienveillance.","Le remerciement remplace-t-il un argument ?",
+  B(["je veux remercier","je remercie","merci à","je salue","je rends hommage"])],
+P2:["Ancrage mémoriel","Lier le présent à un souvenir fondateur.","Le souvenir sert-il de preuve ?",
+  B(["il y a (?:\\d+|dix|vingt|trente|cinquante|cent) ans","je me souviens","souvenez-vous","nos ancêtres","nos aînés","l'histoire nous"])],
+P3:["Peur / menace","Dramatiser pour imposer une solution.","Le danger est-il étayé ?",
+  B(["menaces?","dangers?","dangereu\\p{L}*","chaos","catastroph\\p{L}*","effondrement","déclin","submersion","paieront","faillite","désastre","ruine","guerre civile","péril"])],
+P4:["Fierté collective","Flatter l'identité du groupe.","L'identité sert-elle à clore la discussion ?",
+  B(["notre france","nous,? (?:les )?français","notre pays","notre nation","notre peuple","fiers? d'être","fierté","nos racines","notre identité"])],
+P5:["Urgence","Interdire le délai de réflexion.","Pourquoi ne pas attendre ?",
+  B(["maintenant","il n'y a plus de temps","il est urgent","urgence","sans attendre","dès aujourd'hui","tout de suite","il est temps","avant qu'il ne soit trop tard"])],
+S1:["Chute impérative","Phrase courte et injonctive qui clôt.","Que réfute-t-elle sans le nommer ?",null],
+S2:["Réfutation implicite","Répondre à une critique sans la citer.","Quelle critique est visée ?",
+  B(["jusqu'au bout","je resterai","je ne lâcherai","je ne céderai","je ne renoncerai","quoi qu'on en dise","contrairement à ce qu'on dit","certains disent","on entend dire"])],
+S3:["Accumulation","Enchaîner verbes ou noms pour produire un effet de bilan.","Chaque élément est-il étayé ?",null]
 };
+
+/* Lexiques */
+const INTENS=B(["jamais","toujours","absolument","totalement","inacceptable","intolérable","scandal\\p{L}*","honte\\p{L}*","historique","terrible","dramatique","inouï","incroyable","formidable","magnifique","extraordinaire","immense","énorme","gravissime","insupportable"]);
+const SUCCES=B(["réussi\\p{L}*","progrès","progress\\p{L}*","créé\\p{L}*","création d'emplois","baiss\\p{L}* (?:du|le|la|les) (?:chômage|dette|impôts?|délinquance|déficit)","(?:chômage|dette|impôts?|délinquance|déficit|pauvreté) (?:a|ont) (?:baissé|reculé|diminué)","amélior\\p{L}*","redress\\p{L}*","relanc\\p{L}*","obtenu","gagné","record","renforcé","sauvé","réduit","résultats"]);
+const ECHEC=B(["erreurs?","échecs?","ratés?","retards?","fautes?","difficultés?","hausse (?:du|de la) (?:chômage|dette|délinquance|pauvreté)","dérapage","n'a pas (?:fonctionné|marché)","pas pu","insuffisant\\p{L}*","augment\\p{L}* (?:du|de la) (?:chômage|dette|délinquance|pauvreté)"]);
+const AG_TIERS=B(["mes prédécesseurs","le gouvernement précédent","l'ancienne majorité","l'opposition","bruxelles","l'union européenne","les syndicats","la droite","la gauche","les extrêmes","les marchés","d'en haut","certains"]);
+const AG_CIRC=B(["la crise","les crises","le contexte","la conjoncture","la guerre","la pandémie","le covid","l'inflation","la situation internationale","les circonstances"]);
+const AG_AUCUN=/il y a eu|(?:ont|a) été (?:commis|fait|décidé)|(?:^|[^\p{L}])on (?!a vu)/u;
+const ACCOMP=/(?:j'ai|nous avons|on a|le gouvernement a|nous aurons) (?:réformé|transformé|modernisé|agi|fait|permis|réussi|amélioré|renforcé|relancé|redressé|tenu|protégé|changé)/u;
+const NUM=/\d|(?<![\p{L}])(?:millions?|milliards?|pour ?cent|moitié|tiers|quart)(?![\p{L}])|%/u;
+const SRC=B(["selon","d'après","source","insee","eurostat","ocde","cour des comptes","banque de france","dares","chiffres? (?:de|du|publiés)","publié\\p{L}*","rapport"]);
+const DECIDE=/j'ai (?:voulu|demandé|fixé|décidé|engagé|choisi|lancé|exigé|ordonné)/gu;
+const IMPER=/^(?:et |alors |oui,? )?(\p{L}+(?:ez|ons))(?![\p{L}])/u;
+const STOP=new Set("alors aussi avec avoir avons cela celle celui cette ceux chaque comme dans depuis donc elle elles encore être était fait faire leur leurs mais même moins notre nous parce pour plus quand quel quelle sans sera sont tous tout toute toutes très vous votre être avez sommes c'est qu'il qu'on cest".split(" "));
 const JE=new Set(["je","moi","me","mon","ma","mes","mien","mienne","miens","miennes"]);
 const NOUS=new Set(["nous","notre","nos","nôtre","nôtres"]);
 const VOUS=new Set(["vous","votre","vos","vôtre","vôtres"]);
-const NUM=/(\d|\bmillions?\b|\bmilliards?\b|\bpour ?cent\b|%)/;
-const SRC=/(\bselon\b|d'après|\bsource|insee|eurostat|\bchiffres de\b|\bpubliés?\b)/;
-const DECIDE=/\bj'ai (voulu|demandé|fixé|décidé|engagé|choisi)/g;
+
 function norm(x){return x.toLowerCase().replace(/[’`]/g,"'").replace(/\s+/g," ").trim()}
+function words(t){return t.match(/[\p{L}\d']+/gu)||[]}
 function pron(t){
-  const w=t.match(/[a-zàâäçéèêëîïôöûùüÿœ']+/g)||[];let je=0,nous=0,vous=0;
+  let je=0,nous=0,vous=0;const w=words(t);
   for(const x of w){
     if(/^[jm]'/.test(x)){je++;continue}
-    const y=x.replace(/^[a-z]'/,"");
+    const y=x.replace(/^\p{L}'/u,"");
     if(JE.has(y))je++;else if(NOUS.has(y))nous++;else if(VOUS.has(y))vous++;
   }
   return {je,nous,vous,mots:w.length};
 }
-function analyse(text){
-  const t=norm(text),tags=[];
-  for(const k in P)if(P[k][1].test(t))tags.push([k,P[k][0]]);
-  const pr=pron(t);
+function content(t){return new Set(words(t).map(x=>x.replace(/^\p{L}'/u,"")).filter(x=>x.length>3&&!STOP.has(x)))}
+function agent(t,pr){
+  if(AG_TIERS.test(t))return "tiers";
+  if(AG_CIRC.test(t))return "circonstance";
+  if(C.E2[3].test(t))return "aucun";
+  if(/(?:^|[^\p{L}])(?:je|j')|moi(?![\p{L}])/u.test(t))return "je";
+  if(pr.nous)return "nous";
+  if(AG_AUCUN.test(t))return "aucun";
+  return "aucun";
+}
+
+/* Analyse d'une phrase, avec les phrases précédentes comme contexte */
+function analyse(text,prev){
+  prev=prev||[];
+  const t=norm(text),tags=new Set(),pr=pron(t);
+  for(const k in C){const re=C[k][3];if(re&&re.test(t))tags.add(k)}
+  const succes=SUCCES.test(t),echec=ECHEC.test(t);
+  const valence=succes&&!echec?"succès":echec&&!succes?"échec":succes&&echec?"mixte":"neutre";
+  const ag=agent(t,pr);
+  const num=NUM.test(t),src=SRC.test(t);
+  /* E7 : succès revendiqué au je */
+  if(valence==="succès"&&ag==="je")tags.add("E7");
+  /* E8 : échec imputé à un tiers, aux circonstances ou à personne */
+  if((valence==="échec"||valence==="mixte")&&["tiers","circonstance","aucun"].includes(ag))tags.add("E8");
+  /* E9 : verbes de décision au je en série, ou je saturé */
   const dec=(t.match(DECIDE)||[]).length;
-  if(!tags.some(g=>g[0]==="E9")&&(dec>=2||pr.je>=3))tags.push(["E9",P.E9[0]]);
-  const parts=t.split(/,| et /).map(s=>s.trim()).filter(Boolean);
-  if(parts.length>=3&&parts.every(s=>s.split(" ").length<=4))tags.push(["S3","Accumulation"]);
-  let chiffre=null;
-  if(NUM.test(t))chiffre=SRC.test(t)?"f":"u";
-  let score=62-tags.length*14;
-  if(chiffre==="f")score+=18;if(chiffre==="u")score-=8;
+  if(dec>=2||(pr.je>=3&&pr.mots<=20))tags.add("E9");
+  /* L3 : bilan sans chiffre */
+  if(ACCOMP.test(t)&&!num)tags.add("L3");
+  /* S1 : courte et impérative */
+  const m=t.match(IMPER);
+  if(m&&pr.mots<=10&&!/^nous /.test(t)&&!["nous","sommes","avons","bons","maisons","raisons","questions","millions","nations"].includes(m[1]))tags.add("S1");
+  /* S3 : accumulation (3 éléments courts ou plus) */
+  const parts=t.replace(/[.!?…]$/,"").split(/,|;|(?<![\p{L}])et(?![\p{L}])/u).map(s=>s.trim()).filter(Boolean);
+  if(parts.length>=3&&parts.filter(s=>words(s).length<=4).length>=3)tags.add("S3");
+  /* L5 : reprise quasi identique d'une phrase récente */
+  const cw=content(t);
+  if(cw.size>=4)for(const p of prev.slice(-3)){
+    const pw=content(norm(p.texte));let inter=0;cw.forEach(x=>{if(pw.has(x))inter++});
+    if(inter/Math.min(cw.size,pw.size||1)>=.6){tags.add("L5");break}
+  }
+  /* E3 : bascule entre phrases récentes */
+  for(const p of prev.slice(-4)){
+    if((valence==="échec"&&["nous","aucun"].includes(ag)&&p.valence==="succès"&&p.agent==="je")||
+       (valence==="succès"&&ag==="je"&&p.valence==="échec"&&["nous","aucun"].includes(p.agent))){tags.add("E3");break}
+  }
+  /* Intensité émotionnelle 0–1 */
+  const intens=(t.match(new RegExp(INTENS.source,"gu"))||[]).length;
+  const pCodes=[...tags].filter(k=>k[0]==="P").length;
+  const pathos=Math.min(1,pCodes*.35+intens*.2+(/!/.test(text)?.15:0));
+  /* Chiffres */
+  const chiffre=num?(src?"f":"u"):null;
+  /* Score 0–100 : 100 = factuel et sobre */
+  const w={L:10,E:12,P:11,S:6};
+  let score=64;
+  tags.forEach(k=>score-=w[k[0]]);
+  score-=Math.round(pathos*12);
+  if(chiffre==="f")score+=20;if(chiffre==="u")score-=6;
   score=Math.max(0,Math.min(100,score));
-  return {texte:text.trim(),procedes:tags,chiffre,score,pathos:tags.some(g=>g[0][0]==="P"),...pr};
+  const order=Object.keys(C);
+  return {texte:text.trim(),procedes:[...tags].sort((a,b)=>order.indexOf(a)-order.indexOf(b)),valence,agent:ag,chiffre,pathos:+pathos.toFixed(2),decisions:dec,score,...pr};
+}
+
+/* Indicateurs du discours entier (grille, section 3 bis et 6) */
+function bilan(items){
+  const s=k=>items.reduce((a,x)=>a+x[k],0);
+  const je=s("je"),nous=s("nous"),vous=s("vous"),mots=s("mots");
+  const succ=items.filter(x=>x.valence==="succès"),ech=items.filter(x=>x.valence==="échec"||x.valence==="mixte");
+  const r=(a,b)=>b?a/b:null;
+  const ias=r(succ.filter(x=>x.agent==="je").length,succ.length);
+  const iee=r(ech.filter(x=>["tiers","circonstance","aucun"].includes(x.agent)).length,ech.length);
+  const echJe=r(ech.filter(x=>x.agent==="je").length,ech.length);
+  const fam={L:0,E:0,P:0,S:0},codes={};
+  items.forEach(x=>x.procedes.forEach(k=>{fam[k[0]]++;codes[k]=(codes[k]||0)+1}));
+  const dom=["L","E","P"].sort((a,b)=>fam[b]-fam[a])[0];
+  const ch=items.filter(x=>x.chiffre);
+  return {
+    phrases:items.length,mots,procedes:Object.values(codes).reduce((a,b)=>a+b,0),familles:fam,codes,
+    pilier_dominant:fam[dom]?{L:"logos",E:"ethos",P:"pathos"}[dom]:null,
+    EG1:r(je,je+nous),EG2:r(vous,je+nous+vous),EG3:mots?je/mots*100:null,EG4:s("decisions"),
+    EG5:ias,EG6:iee,EG7:ias!=null&&echJe!=null?ias-echJe:null,
+    chiffres:ch.length,chiffres_sources:ch.filter(x=>x.chiffre==="f").length,
+    a_verifier:items.filter(x=>x.chiffre==="u").map(x=>x.texte),
+    attribution:items.filter(x=>x.valence!=="neutre").map(x=>({phrase:x.texte,valence:x.valence,agent:x.agent}))
+  };
 }
 function phrases(txt){return txt.replace(/\s+/g," ").split(/(?<=[.!?…])\s+/).map(s=>s.trim()).filter(s=>s.length>2)}
-window.R1={analyse,phrases,P};
+window.R1={analyse,bilan,phrases,C,version:"2.0"};
 }
+
 </script>
 
 <script>
@@ -215,19 +341,23 @@ const hhmmss=()=>new Date().toLocaleTimeString("fr-FR");
 
 function add(text){
   for(const p of R1.phrases(text)){
-    const a=R1.analyse(p);a.heure=hhmmss();st.items.push(a);
+    const a=R1.analyse(p,st.items);a.heure=hhmmss();st.items.push(a);
     if(st.vib&&a.procedes.length&&navigator.vibrate)try{navigator.vibrate(120)}catch(e){}
   }
   render();
 }
-function card(a,now){
-  let t=a.procedes.map(g=>'<span class="tag">'+g[0]+" · "+esc(g[1])+"</span>").join("");
+const AGL={je:"je",nous:"nous",tiers:"un tiers",circonstance:"les circonstances",aucun:"personne"};
+function why(k){const c=R1.C[k];return '<div class="why"><b>'+k+" · "+esc(c[0])+"</b>"+esc(c[1])+"<i>Question test : "+esc(c[2])+"</i></div>"}
+function card(a,now,i){
+  let t=a.procedes.map(k=>'<button type="button" class="tag" data-k="'+k+'" data-i="'+i+'">'+k+" · "+esc(R1.C[k][0])+"</button>").join("");
   if(a.chiffre==="u")t+='<span class="tag u">Chiffre sans source</span>';
   if(a.chiffre==="f")t+='<span class="tag f">Chiffre sourcé</span>';
-  return '<div class="s'+(now?" now":"")+'"><div class="t">'+a.heure+'</div><q>'+esc(a.texte)+"</q>"+(t?'<div class="tags">'+t+"</div>":"")+"</div>";
+  if(a.valence!=="neutre")t+='<span class="tag u">'+a.valence+" → "+AGL[a.agent]+"</span>";
+  return '<div class="s'+(now?" now":"")+'"><div class="t">'+a.heure+" · score "+a.score+'</div><q>'+esc(a.texte)+"</q>"+(t?'<div class="tags">'+t+"</div>":"")+'<div class="w" id="w'+i+'"></div></div>';
 }
+const fx=(v,d=2)=>v==null?"–":v.toFixed(d).replace(".",",");
 function render(){
-  const it=st.items,last=it.slice(-st.win);
+  const it=st.items,last=it.slice(-st.win),b=R1.bilan(it);
   $("count").textContent=it.length+(it.length>1?" phrases":" phrase");
   const v=$("verdict");
   if(!it.length){v.className="verdict";$("icon").innerHTML=ICON.flat;$("vlab").textContent="En attente";$("vsub").textContent="Aucune phrase analysée";$("vscore").textContent="Score – / 100"}
@@ -241,23 +371,30 @@ function render(){
     $("vsub").textContent="Sur les "+last.length+" dernières phrases";
     $("vscore").textContent="Score "+score+" / 100";
   }
-  const pa=last.filter(a=>a.pathos).length,ch=it.filter(a=>a.chiffre),chf=ch.filter(a=>a.chiffre==="f").length;
-  const je=it.reduce((s,a)=>s+a.je,0),nous=it.reduce((s,a)=>s+a.nous,0);
+  const pa=last.length?Math.round(last.reduce((s,a)=>s+a.pathos,0)/last.length*100):0;
   const rows=[];
-  if(st.show.pathos)rows.push(["Pathos",pct(pa,last.length),pct(pa,last.length)+" %"]);
-  if(st.show.chiffres)rows.push(["Chiffres sourcés",pct(chf,ch.length),chf+" / "+ch.length]);
-  if(st.show.moi)rows.push(["Je / (je+nous)",pct(je,je+nous),ratio(je,je+nous)]);
+  if(st.show.pathos)rows.push(["Pathos",pa,pa+" %"]);
+  if(st.show.chiffres)rows.push(["Chiffres sourcés",pct(b.chiffres_sources,b.chiffres),b.chiffres_sources+" / "+b.chiffres]);
+  if(st.show.moi)rows.push(["Je / (je+nous)",b.EG1==null?0:Math.round(b.EG1*100),fx(b.EG1)]);
   $("meters").innerHTML=rows.map(r=>'<div class="m"><span>'+r[0]+'</span><div class="bar"><i style="width:'+r[1]+'%"></i></div><b>'+r[2]+"</b></div>").join("");
-  $("feed").innerHTML=it.length?it.map((a,i)=>card(a,i===it.length-1)).reverse().join(""):'<div class="empty">Appuyez sur « Écouter », autorisez le micro, puis approchez le téléphone de la télé. Les phrases apparaîtront ici avec leurs procédés. Pour essayer sans micro : onglet Réglages, « Analyser ce texte ».</div>';
-  const n=it.reduce((s,a)=>s+a.procedes.length,0),vous=it.reduce((s,a)=>s+a.vous,0);
-  $("kpis").innerHTML=[[it.length,"phrases analysées"],[n,"procédés relevés"],[ratio(je,je+nous),"EG1 je / (je+nous)"],[ratio(vous,je+nous+vous),"EG2 taux d'adresse"]].map(k=>'<div class="k"><b>'+k[0]+"</b><span>"+k[1]+"</span></div>").join("");
-  const c={L:0,E:0,P:0,S:0},codes={};
-  it.forEach(a=>a.procedes.forEach(g=>{c[g[0][0]]++;codes[g[0]]=(codes[g[0]]||0)+1}));
-  const mx=Math.max(1,...Object.values(c));
-  $("fam").innerHTML=Object.keys(FAM).map(k=>'<div class="m"><span>'+FAM[k]+'</span><div class="bar"><i style="width:'+pct(c[k],mx)+'%;background:var(--bad)"></i></div><b>'+c[k]+"</b></div>").join("");
-  $("codes").innerHTML=Object.keys(codes).sort().map(k=>'<span class="tag">'+k+" × "+codes[k]+"</span>").join("")||'<span class="small">Aucun pour l\'instant.</span>';
-  $("worst").innerHTML=it.slice().sort((a,b)=>a.score-b.score).slice(0,3).map(a=>card(a,false)).join("");
+  $("feed").innerHTML=it.length?it.map((a,i)=>card(a,i===it.length-1,i)).reverse().join(""):'<div class="empty">Appuyez sur « Écouter », autorisez le micro, puis approchez le téléphone de la télé. Les phrases apparaîtront ici avec leurs procédés. Touchez un code pour voir son explication. Pour essayer sans micro : onglet Réglages, « Analyser ce texte ».</div>';
+  $("kpis").innerHTML=[[b.phrases,"phrases analysées"],[b.procedes,"procédés relevés"],[b.chiffres_sources+" / "+b.chiffres,"chiffres sourcés"],[fx(b.EG1),"EG1 je / (je+nous)"]].map(k=>'<div class="k"><b>'+k[0]+"</b><span>"+k[1]+"</span></div>").join("");
+  $("dom").textContent=b.pilier_dominant?"Dominant : "+b.pilier_dominant:"";
+  const mx=Math.max(1,...Object.values(b.familles));
+  $("fam").innerHTML=Object.keys(FAM).map(k=>'<div class="m"><span>'+FAM[k]+'</span><div class="bar"><i style="width:'+pct(b.familles[k],mx)+'%;background:var(--bad)"></i></div><b>'+b.familles[k]+"</b></div>").join("");
+  const order=Object.keys(R1.C);
+  $("codes").innerHTML=Object.keys(b.codes).sort((x,y)=>order.indexOf(x)-order.indexOf(y)).map(k=>'<button type="button" class="tag" data-c="'+k+'">'+k+" × "+b.codes[k]+"</button>").join("")||'<span class="small">Aucun pour l\'instant.</span>';
+  const eg=[["EG1 Ratio je / nous","< 0,40 collectif · > 0,60 égocentré",fx(b.EG1)],["EG2 Taux d'adresse (vous)","Bas : discours sur soi plutôt qu'à l'auditeur",fx(b.EG2)],["EG3 Densité du moi","« je » pour 100 mots",fx(b.EG3,1)],["EG4 Verbes de décision au « je »","Plus de 3 dans un texte court : saturation (E9)",String(b.EG4)],["EG5 Auto-attribution des succès","Proche de 1 : E7",fx(b.EG5)],["EG6 Externalisation des échecs","Proche de 1 : E8",fx(b.EG6)],["EG7 Biais d'attribution net","Au-dessus de 0,5 : biais d'autocomplaisance",fx(b.EG7)]];
+  $("egt").innerHTML=eg.map(r=>"<tr><td>"+r[0]+"<small>"+r[1]+"</small></td><td>"+r[2]+"</td></tr>").join("");
+  $("attr").innerHTML=b.attribution.length?b.attribution.map(r=>"<tr><td>"+esc(r.phrase)+"<small>"+r.valence+"</small></td><td>"+AGL[r.agent]+"</td></tr>").join(""):'<tr><td class="small">Aucune phrase de bilan (succès ou échec) pour l\'instant.</td><td></td></tr>';
+  $("verif").innerHTML=b.a_verifier.length?b.a_verifier.map(x=>'<div class="s"><q>'+esc(x)+"</q></div>").join(""):'<span class="small">Aucun.</span>';
 }
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button.tag");if(!t)return;
+  if(t.dataset.c){const box=$("codewhy");box.innerHTML=box.dataset.k===t.dataset.c?"":why(t.dataset.c);box.dataset.k=box.innerHTML?t.dataset.c:"";return}
+  const box=$("w"+t.dataset.i);if(!box)return;
+  box.innerHTML=box.dataset.k===t.dataset.k?"":why(t.dataset.k);box.dataset.k=box.innerHTML?t.dataset.k:"";
+});
 function msg(t){const m=$("msg");m.textContent=t;m.classList.toggle("hide",!t)}
 
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -308,7 +445,7 @@ $("c-wake").checked=st.wake;$("c-wake").onchange=e=>{st.wake=e.target.checked;sa
 $("b-paste").onclick=()=>{add($("paste").value);document.querySelector('[data-v="v-direct"]').click()};
 $("b-clear").onclick=()=>{st.items=[];st.mood="flat";render()};
 $("b-copy").onclick=async()=>{
-  const data=JSON.stringify({outil:"Rhétorique 1 test micro",date:new Date().toISOString(),phrases:st.items},null,2);
+  const data=JSON.stringify({outil:"Rhétorique 1 test micro",moteur:R1.version,date:new Date().toISOString(),bilan:R1.bilan(st.items),phrases:st.items},null,2);
   try{await navigator.clipboard.writeText(data);$("copied").textContent="JSON copié ("+st.items.length+" phrases)."}catch(e){$("copied").textContent="Copie refusée par le navigateur."}
 };
 setUI();render();
