@@ -84,6 +84,20 @@ button.tag{font:13px Inter,sans-serif;min-height:30px;padding:3px 8px;border:0;b
 .eg td:last-child{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;padding-left:10px}
 .eg small{display:block;color:var(--mute);font-size:13px}
 .ver{font-size:13px;color:var(--mute)}
+.modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:8px 16px;border-bottom:1px solid var(--line)}
+.modes button{min-height:40px;font-size:15px}
+.modes button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
+button.chk{min-height:32px;font-size:13px;padding:0 10px;margin-top:8px}
+.fact{margin-top:8px;padding:10px;border-radius:10px;background:var(--card);font-size:14px}
+.fv{display:inline-block;font-weight:600;padding:2px 8px;border-radius:8px;margin-bottom:4px}
+.fv.vrai{background:var(--okbg);color:var(--ok)}
+.fv.faux{background:var(--badbg);color:var(--bad)}
+.fv.trompeur{background:light-dark(#fff1d6,#3a2c10);color:light-dark(#9a5b00,#f2b04a)}
+.fv.neutre{background:var(--midbg);color:var(--mute)}
+.fact ol{margin:6px 0 0;padding-left:20px}
+.fact a{color:var(--ok);overflow-wrap:anywhere}
+.fact .p{color:var(--mute);margin-top:4px}
+input[type=password],input[type=text]{width:100%;font:16px Inter,sans-serif;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:0 10px;margin:8px 0}
 @media(prefers-reduced-motion:reduce){.s{animation:none}.bar i,.verdict,.badge svg{transition:none}}
 </style>
 </head>
@@ -92,6 +106,10 @@ button.tag{font:13px Inter,sans-serif;min-height:30px;padding:3px 8px;border:0;b
   <div class="top">
     <span class="brand">Rhétorique 1</span>
     <span class="chip" id="state">Micro coupé</span>
+  </div>
+  <div class="modes" role="group" aria-label="Mode d'analyse">
+    <button type="button" id="m-rh" aria-pressed="true">Rhétorique</button>
+    <button type="button" id="m-fa" aria-pressed="false">Faits</button>
   </div>
 
   <div class="view" id="v-direct">
@@ -118,6 +136,21 @@ button.tag{font:13px Inter,sans-serif;min-height:30px;padding:3px 8px;border:0;b
     <div class="row"><label for="c-moi">Jauge je / nous (EG1)</label><input type="checkbox" id="c-moi" checked></div>
     <div class="row"><label for="c-vib">Vibrer à chaque procédé détecté</label><input type="checkbox" id="c-vib"></div>
     <div class="row"><label for="c-wake">Garder l'écran allumé pendant l'écoute</label><input type="checkbox" id="c-wake" checked></div>
+    <div class="h" style="margin-top:20px"><span>Vérification des faits (API Claude)</span></div>
+    <label for="apikey" class="small">Clé API Anthropic. Elle reste dans ce navigateur et n'est envoyée qu'à api.anthropic.com.</label>
+    <input type="password" id="apikey" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false">
+    <div class="btns">
+      <button type="button" id="k-save">Enregistrer</button>
+      <button type="button" id="k-test">Tester la clé</button>
+      <button type="button" id="k-del">Effacer la clé</button>
+    </div>
+    <p class="small" id="k-msg" aria-live="polite"></p>
+    <div class="row"><label for="model">Modèle<small>Sonnet : plus fiable. Haiku : bien moins cher.</small></label>
+      <select id="model"><option value="claude-sonnet-5-5">Sonnet 5.5</option><option value="claude-haiku-5-5">Haiku 5.5</option></select></div>
+    <div class="row"><label for="maxu">Recherches web par affirmation</label>
+      <select id="maxu"><option value="2">2</option><option value="3" selected>3</option><option value="5">5</option></select></div>
+    <div class="row"><label for="c-auto">Vérifier automatiquement en mode Faits<small>Sinon, touchez « Vérifier » sur chaque affirmation.</small></label><input type="checkbox" id="c-auto"></div>
+    <p class="small" id="k-stats"></p>
     <div class="h" style="margin-top:20px"><span>Tester sans micro</span></div>
     <label for="paste" class="small">Collez un texte : il est découpé en phrases et analysé avec les mêmes règles.</label>
     <textarea id="paste">Mesdames et messieurs, je vais être très clair ce soir. Depuis que j'ai pris ces décisions, le chômage a baissé de 2 points. Si nous ne faisons rien, c'est le chaos. Soit on vote ce plan, soit on accepte le déclin. Il y a eu parfois des erreurs, mais nous avons tenu. Selon l'Insee, 3 000 emplois ont été créés. Comptez sur mon engagement jusqu'au bout.</textarea>
@@ -326,6 +359,81 @@ window.R1={analyse,bilan,phrases,C,version:"2.0"};
 
 </script>
 
+<script id="facts">
+{
+/* Vérification des faits — API Claude + recherche web. La clé reste dans le navigateur de l'utilisateur. */
+const NUMF=/\d|(?<![\p{L}])(?:millions?|milliards?|pour ?cent|moitié|tiers|quart|double|triple)(?![\p{L}])|%/u;
+const SUPER=/(?<![\p{L}])(?:premier|première|seul|seule|record|jamais|le plus|la plus|les plus|le moins|la moins|aucun pays|tous les|toutes les|personne n'a|historique)(?![\p{L}])/u;
+const FACTV=/(?<![\p{L}])(?:est|sont|était|étaient|a été|ont été|a|ont|compte|représente|coûte|dépasse|atteint|baisse|augmente|recule|progresse|diminue)(?![\p{L}])/u;
+const OPIN=/(?<![\p{L}])(?:je pense|je crois|à mon avis|il faut|nous devons|je souhaite|j'espère|je veux)(?![\p{L}])/u;
+function verifiable(text){
+  const t=text.toLowerCase().replace(/[’`]/g,"'");
+  if(/\?\s*$/.test(t))return false;
+  const proper=/\s[A-ZÉÈÀÂÎÔ][\p{L}-]{2,}/u.test(text.slice(1));
+  const score=(NUMF.test(t)?2:0)+(SUPER.test(t)?1:0)+(proper&&FACTV.test(t)?1:0)-(OPIN.test(t)?1:0);
+  return score>=2||(NUMF.test(t)&&!OPIN.test(t));
+}
+const SYS=`Tu es un vérificateur de faits rigoureux et impartial, pour des débats télévisés français.
+On te donne une affirmation entendue en direct (transcription automatique, parfois imparfaite) et son contexte.
+1. Identifie l'affirmation factuelle vérifiable. Si la phrase n'est qu'une opinion, une promesse ou un jugement, ne cherche pas : verdict "opinion".
+2. Sinon, cherche sur le web. Privilégie les sources primaires et de référence : Insee, Eurostat, ministères, Cour des comptes, Légifrance, Banque de France, OCDE, rubriques de vérification (AFP Factuel, Les Décodeurs, Libération CheckNews, franceinfo Vrai ou Fake).
+3. Juge l'affirmation à la date indiquée. Un chiffre arrondi raisonnablement reste « vrai ». Un chiffre exact mais présenté de façon trompeuse (période choisie, comparaison biaisée, contexte omis) est « trompeur ».
+Rédige en français, brièvement, puis termine OBLIGATOIREMENT par un bloc JSON strict sur une seule ligne, sans rien après :
+{"verdict":"vrai|plutôt vrai|trompeur|faux|invérifiable|opinion","resume":"une phrase qui dit ce qui est exact","precision":"le chiffre ou la nuance correcte, ou vide","affirmation":"l'affirmation vérifiée, reformulée"}`;
+
+const ENDPOINT="https://api.anthropic.com/v1/messages";
+async function callAPI(key,body){
+  const r=await fetch(ENDPOINT,{method:"POST",headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body)});
+  let j=null;try{j=await r.json()}catch(e){}
+  if(!r.ok){
+    const m=j&&j.error&&j.error.message||("HTTP "+r.status);
+    const map={401:"Clé refusée : vérifiez qu'elle est complète et active.",403:"Accès refusé pour cette clé.",429:"Trop de requêtes ou limite de dépense atteinte. Réessayez plus tard.",400:"Requête refusée : "+m,529:"Service saturé, réessayez dans un instant."};
+    throw new Error(map[r.status]||m);
+  }
+  return j;
+}
+function parse(resp){
+  const blocks=resp.content||[];
+  let text="",sources=[],seen=new Set(),searches=0;
+  const addSrc=(url,title)=>{if(url&&!seen.has(url)){seen.add(url);sources.push({url,title:title||url})}};
+  for(const b of blocks){
+    if(b.type==="text"){text+=b.text;(b.citations||[]).forEach(c=>addSrc(c.url,c.title))}
+    if(b.type==="server_tool_use")searches++;
+  }
+  if(!sources.length)for(const b of blocks)if(b.type==="web_search_tool_result"&&Array.isArray(b.content))b.content.slice(0,4).forEach(x=>addSrc(x.url,x.title));
+  let data=null;
+  const m=text.match(/\{[^{}]*"verdict"[^{}]*\}\s*$/)||text.match(/\{[^{}]*"verdict"[^{}]*\}/);
+  if(m)try{data=JSON.parse(m[0])}catch(e){}
+  const explication=text.replace(m?m[0]:"","").trim();
+  if(!data)data={verdict:"invérifiable",resume:explication.slice(0,240)||"Réponse illisible.",precision:""};
+  data.verdict=String(data.verdict||"invérifiable").toLowerCase();
+  return {...data,explication,sources:sources.slice(0,5),searches,usage:resp.usage||{}};
+}
+async function check(text,ctx,opt){
+  const today=new Date().toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
+  const msgs=[{role:"user",content:"Date du jour : "+today+".\nContexte (phrases précédentes) : "+(ctx||"aucun")+"\nAffirmation à vérifier : « "+text+" »"}];
+  const body={model:opt.model,max_tokens:1200,system:SYS,messages:msgs,
+    tools:[{type:"web_search_20250305",name:"web_search",max_uses:opt.maxUses||3,user_location:{type:"approximate",country:"FR",timezone:"Europe/Paris"}}]};
+  let resp=await callAPI(opt.key,body),all=[...(resp.content||[])],usage={...(resp.usage||{})},guard=0;
+  while(resp.stop_reason==="pause_turn"&&guard++<2){
+    body.messages=[...msgs,{role:"assistant",content:all}];
+    resp=await callAPI(opt.key,body);all=all.concat(resp.content||[]);
+    for(const k of ["input_tokens","output_tokens"])usage[k]=(usage[k]||0)+((resp.usage||{})[k]||0);
+  }
+  return parse({content:all,usage});
+}
+async function test(key,model){
+  const r=await callAPI(key,{model,max_tokens:5,messages:[{role:"user",content:"Réponds OK."}]});
+  return !!r;
+}
+/* Prix publics (USD) : par million de jetons entrée / sortie, et par recherche */
+const PRICE={"claude-sonnet-5-5":[2,10],"claude-haiku-5-5":[0.1,0.5]},SEARCH=0.01;
+function cost(model,f){const p=PRICE[model]||[2,10];const u=f.usage||{};return (u.input_tokens||0)/1e6*p[0]+(u.output_tokens||0)/1e6*p[1]+(f.searches||0)*SEARCH}
+window.R1F={verifiable,check,test,parse,cost};
+}
+
+</script>
+
 <script>
 {
 const $=id=>document.getElementById(id);
@@ -334,32 +442,59 @@ const ICON={up:'<path d="M6 22h8v20H6z"/><path d="M17 22l8-14c1.6-2.8 6.5-1.8 6.
 const FAM={L:"Logos",E:"Ethos",P:"Pathos",S:"Structure"};
 let st={items:[],mood:"flat",win:5,show:{pathos:true,chiffres:true,moi:true},vib:false,wake:true,listening:false};
 try{const v=JSON.parse(localStorage.getItem("r1test")||"{}");Object.assign(st.show,v.show||{});if(v.win)st.win=v.win;if(v.vib!=null)st.vib=v.vib;if(v.wake!=null)st.wake=v.wake}catch(e){}
-const save=()=>{try{localStorage.setItem("r1test",JSON.stringify({show:st.show,win:st.win,vib:st.vib,wake:st.wake}))}catch(e){}};
+st.mode="rh";st.fc={model:"claude-sonnet-5-5",maxUses:3,auto:false};st.key="";st.spent=0;st.nchecks=0;
+try{const v=JSON.parse(localStorage.getItem("r1test")||"{}");if(v.mode)st.mode=v.mode;Object.assign(st.fc,v.fc||{});st.spent=v.spent||0;st.nchecks=v.nchecks||0;st.key=localStorage.getItem("r1key")||""}catch(e){}
+const save=()=>{try{localStorage.setItem("r1test",JSON.stringify({show:st.show,win:st.win,vib:st.vib,wake:st.wake,mode:st.mode,fc:st.fc,spent:st.spent,nchecks:st.nchecks}))}catch(e){}};
 const pct=(a,b)=>b?Math.round(a/b*100):0;
 const ratio=(a,b)=>b?(a/b).toFixed(2).replace(".",","):"–";
 const hhmmss=()=>new Date().toLocaleTimeString("fr-FR");
 
 function add(text){
   for(const p of R1.phrases(text)){
-    const a=R1.analyse(p,st.items);a.heure=hhmmss();st.items.push(a);
+    const a=R1.analyse(p,st.items);a.heure=hhmmss();a.verif=R1F.verifiable(p);st.items.push(a);
+    if(st.mode==="fa"&&st.fc.auto&&a.verif&&st.key)verify(st.items.length-1);
     if(st.vib&&a.procedes.length&&navigator.vibrate)try{navigator.vibrate(120)}catch(e){}
   }
   render();
 }
 const AGL={je:"je",nous:"nous",tiers:"un tiers",circonstance:"les circonstances",aucun:"personne"};
 function why(k){const c=R1.C[k];return '<div class="why"><b>'+k+" · "+esc(c[0])+"</b>"+esc(c[1])+"<i>Question test : "+esc(c[2])+"</i></div>"}
+const FVL={"vrai":["vrai","Vrai"],"plutôt vrai":["vrai","Plutôt vrai"],"trompeur":["trompeur","Trompeur"],"faux":["faux","Faux"],"invérifiable":["neutre","Invérifiable"],"opinion":["neutre","Opinion, pas un fait"]};
+function factHTML(a,i){
+  const f=a.fact;
+  if(!f)return (a.verif||a.chiffre)?'<button type="button" class="chk" data-i="'+i+'">Vérifier ce fait</button>':"";
+  if(f.state==="wait")return '<div class="fact">Vérification en cours : recherche web…</div>';
+  if(f.state==="err")return '<div class="fact"><span class="fv faux">Erreur</span> '+esc(f.error)+'<br><button type="button" class="chk" data-i="'+i+'">Réessayer</button></div>';
+  const v=FVL[f.verdict]||["neutre",f.verdict];
+  return '<div class="fact"><span class="fv '+v[0]+'">'+esc(v[1])+"</span><div>"+esc(f.resume||"")+"</div>"+(f.precision?'<div class="p">'+esc(f.precision)+"</div>":"")+
+    (f.sources&&f.sources.length?"<ol>"+f.sources.map(x=>'<li><a href="'+esc(x.url)+'" target="_blank" rel="noopener">'+esc(x.title)+"</a></li>").join("")+"</ol>":'<div class="p">Aucune source citée.</div>')+"</div>";
+}
 function card(a,now,i){
+  if(st.mode==="fa"&&!a.verif&&!a.fact)return "";
   let t=a.procedes.map(k=>'<button type="button" class="tag" data-k="'+k+'" data-i="'+i+'">'+k+" · "+esc(R1.C[k][0])+"</button>").join("");
   if(a.chiffre==="u")t+='<span class="tag u">Chiffre sans source</span>';
   if(a.chiffre==="f")t+='<span class="tag f">Chiffre sourcé</span>';
   if(a.valence!=="neutre")t+='<span class="tag u">'+a.valence+" → "+AGL[a.agent]+"</span>";
-  return '<div class="s'+(now?" now":"")+'"><div class="t">'+a.heure+" · score "+a.score+'</div><q>'+esc(a.texte)+"</q>"+(t?'<div class="tags">'+t+"</div>":"")+'<div class="w" id="w'+i+'"></div></div>';
+  return '<div class="s'+(now?" now":"")+'"><div class="t">'+a.heure+" · score "+a.score+'</div><q>'+esc(a.texte)+"</q>"+(t?'<div class="tags">'+t+"</div>":"")+'<div class="w" id="w'+i+'"></div>'+factHTML(a,i)+"</div>";
 }
 const fx=(v,d=2)=>v==null?"–":v.toFixed(d).replace(".",",");
 function render(){
   const it=st.items,last=it.slice(-st.win),b=R1.bilan(it);
   $("count").textContent=it.length+(it.length>1?" phrases":" phrase");
   const v=$("verdict");
+  if(st.mode==="fa"){
+    const vf=it.filter(a=>a.verif),done=it.filter(a=>a.fact&&a.fact.state==="ok"&&a.fact.verdict!=="opinion");
+    const c=k=>done.filter(a=>FVL[a.fact.verdict]&&FVL[a.fact.verdict][0]===k).length,ok=c("vrai"),ko=c("faux")+c("trompeur");
+    const score=done.length?Math.round(ok/done.length*100):null;
+    const mood=score==null?"flat":score>=65?"up":score<=40?"down":"flat";
+    v.className="verdict "+mood;$("icon").innerHTML=mood==="flat"?ICON.flat:ICON.up;$("icon").style.transform=mood==="down"?"rotate(180deg)":"none";
+    $("vlab").textContent=score==null?"Mode factuel":mood==="up"?"Faits plutôt exacts":mood==="down"?"Faits contestables":"Faits mitigés";
+    $("vsub").textContent=vf.length+" affirmation"+(vf.length>1?"s":"")+" vérifiable"+(vf.length>1?"s":"")+" · "+done.length+" vérifiée"+(done.length>1?"s":"");
+    $("vscore").textContent=score==null?(st.key?"Touchez « Vérifier » sur une affirmation":"Ajoutez votre clé API dans Réglages"):"Exactes "+ok+" · contestées "+ko+" · fiabilité "+score+" %";
+    $("meters").innerHTML="";
+    $("feed").innerHTML=vf.length?it.map((a,i)=>card(a,i===it.length-1,i)).reverse().join(""):'<div class="empty">Mode factuel : seules les affirmations vérifiables (chiffres, dates, records, faits nommés) s\'affichent ici. Touchez « Vérifier ce fait » pour lancer une recherche web, ou activez la vérification automatique dans Réglages.</div>';
+    summary(it);return;
+  }
   if(!it.length){v.className="verdict";$("icon").innerHTML=ICON.flat;$("vlab").textContent="En attente";$("vsub").textContent="Aucune phrase analysée";$("vscore").textContent="Score – / 100"}
   else{
     const score=Math.round(last.reduce((s,a)=>s+a.score,0)/last.length);
@@ -378,6 +513,10 @@ function render(){
   if(st.show.moi)rows.push(["Je / (je+nous)",b.EG1==null?0:Math.round(b.EG1*100),fx(b.EG1)]);
   $("meters").innerHTML=rows.map(r=>'<div class="m"><span>'+r[0]+'</span><div class="bar"><i style="width:'+r[1]+'%"></i></div><b>'+r[2]+"</b></div>").join("");
   $("feed").innerHTML=it.length?it.map((a,i)=>card(a,i===it.length-1,i)).reverse().join(""):'<div class="empty">Appuyez sur « Écouter », autorisez le micro, puis approchez le téléphone de la télé. Les phrases apparaîtront ici avec leurs procédés. Touchez un code pour voir son explication. Pour essayer sans micro : onglet Réglages, « Analyser ce texte ».</div>';
+  summary(it);
+}
+function summary(it){
+  const b=R1.bilan(it);
   $("kpis").innerHTML=[[b.phrases,"phrases analysées"],[b.procedes,"procédés relevés"],[b.chiffres_sources+" / "+b.chiffres,"chiffres sourcés"],[fx(b.EG1),"EG1 je / (je+nous)"]].map(k=>'<div class="k"><b>'+k[0]+"</b><span>"+k[1]+"</span></div>").join("");
   $("dom").textContent=b.pilier_dominant?"Dominant : "+b.pilier_dominant:"";
   const mx=Math.max(1,...Object.values(b.familles));
@@ -390,6 +529,7 @@ function render(){
   $("verif").innerHTML=b.a_verifier.length?b.a_verifier.map(x=>'<div class="s"><q>'+esc(x)+"</q></div>").join(""):'<span class="small">Aucun.</span>';
 }
 document.addEventListener("click",e=>{
+  const c=e.target.closest("button.chk");if(c){verify(+c.dataset.i);return}
   const t=e.target.closest("button.tag");if(!t)return;
   if(t.dataset.c){const box=$("codewhy");box.innerHTML=box.dataset.k===t.dataset.c?"":why(t.dataset.c);box.dataset.k=box.innerHTML?t.dataset.c:"";return}
   const box=$("w"+t.dataset.i);if(!box)return;
@@ -445,9 +585,36 @@ $("c-wake").checked=st.wake;$("c-wake").onchange=e=>{st.wake=e.target.checked;sa
 $("b-paste").onclick=()=>{add($("paste").value);document.querySelector('[data-v="v-direct"]').click()};
 $("b-clear").onclick=()=>{st.items=[];st.mood="flat";render()};
 $("b-copy").onclick=async()=>{
-  const data=JSON.stringify({outil:"Rhétorique 1 test micro",moteur:R1.version,date:new Date().toISOString(),bilan:R1.bilan(st.items),phrases:st.items},null,2);
+  const data=JSON.stringify({outil:"Rhétorique 1 test micro",moteur:R1.version,mode:st.mode,date:new Date().toISOString(),bilan:R1.bilan(st.items),phrases:st.items},null,2);
   try{await navigator.clipboard.writeText(data);$("copied").textContent="JSON copié ("+st.items.length+" phrases)."}catch(e){$("copied").textContent="Copie refusée par le navigateur."}
 };
+let queue=Promise.resolve();
+function verify(i){
+  const a=st.items[i];if(!a||(a.fact&&a.fact.state==="wait"))return;
+  if(!st.key){a.fact={state:"err",error:"Aucune clé API : ajoutez-la dans Réglages."};render();return}
+  a.fact={state:"wait"};render();
+  const ctx=st.items.slice(Math.max(0,i-2),i).map(x=>x.texte).join(" ");
+  queue=queue.then(async()=>{
+    try{const f=await R1F.check(a.texte,ctx,{key:st.key,model:st.fc.model,maxUses:st.fc.maxUses});
+      a.fact={state:"ok",...f};st.spent+=R1F.cost(st.fc.model,f);st.nchecks++;save();stats()}
+    catch(e){a.fact={state:"err",error:e.message==="Failed to fetch"?"Connexion à l'API impossible (réseau ou navigateur).":e.message}}
+    render();
+  });
+}
+function stats(){$("k-stats").textContent=st.nchecks?st.nchecks+" vérification"+(st.nchecks>1?"s":"")+" sur cet appareil · coût estimé "+st.spent.toFixed(2).replace(".",",")+" $":"Aucune vérification pour l'instant. Coût indicatif : quelques centimes par affirmation avec Sonnet, moins d'un centime à deux avec Haiku."}
+function setMode(m){st.mode=m;$("m-rh").setAttribute("aria-pressed",m==="rh");$("m-fa").setAttribute("aria-pressed",m==="fa");save();render()}
+$("m-rh").onclick=()=>setMode("rh");$("m-fa").onclick=()=>setMode("fa");
+$("apikey").value=st.key?"•••• enregistrée ("+st.key.slice(-4)+")":"";
+$("apikey").onfocus=e=>{if(e.target.value.startsWith("••••"))e.target.value=""};
+$("k-save").onclick=()=>{const k=$("apikey").value.trim();if(!/^sk-ant-/.test(k)){$("k-msg").textContent="Cette clé ne ressemble pas à une clé Anthropic (elle commence par sk-ant-).";return}
+  st.key=k;try{localStorage.setItem("r1key",k)}catch(e){}$("apikey").value="•••• enregistrée ("+k.slice(-4)+")";$("k-msg").textContent="Clé enregistrée sur cet appareil."};
+$("k-del").onclick=()=>{st.key="";try{localStorage.removeItem("r1key")}catch(e){}$("apikey").value="";$("k-msg").textContent="Clé effacée de cet appareil."};
+$("k-test").onclick=async()=>{if(!st.key){$("k-msg").textContent="Enregistrez d'abord une clé.";return}$("k-msg").textContent="Test en cours…";
+  try{await R1F.test(st.key,st.fc.model);$("k-msg").textContent="Clé valide : la vérification des faits est prête."}catch(e){$("k-msg").textContent=e.message==="Failed to fetch"?"Connexion à l'API impossible.":e.message}};
+$("model").value=st.fc.model;$("model").onchange=e=>{st.fc.model=e.target.value;save()};
+$("maxu").value=String(st.fc.maxUses);$("maxu").onchange=e=>{st.fc.maxUses=+e.target.value;save()};
+$("c-auto").checked=st.fc.auto;$("c-auto").onchange=e=>{st.fc.auto=e.target.checked;save()};
+stats();setMode(st.mode);
 setUI();render();
 }
 </script>
